@@ -2,7 +2,7 @@ name: Release OpAMP supervisor
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["cx-opampsupervisor/v*"]
 
 permissions:
   contents: read
@@ -13,7 +13,7 @@ jobs:
     uses: ./.github/workflows/base-binary-release.yaml
     with:
       binary: opampsupervisor
-      collector-dependency: 'open-telemetry/opentelemetry-collector-contrib'
+      collector-dependency: 'coralogix/opentelemetry-collector-contrib'
       dependency-target-folder: '.contrib'
       windows-msi: true
     secrets: inherit
