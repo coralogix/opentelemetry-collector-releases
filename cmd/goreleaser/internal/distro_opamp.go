@@ -23,10 +23,20 @@ var (
 			&fullBuildConfig{TargetOS: "windows", TargetArch: []string{"amd64"}, BinaryName: "opampsupervisor"},
 		}
 		d.ContainerImages = slices.Concat(
-			newContainerImages(d.Name, "linux", opAmpArchs, containerImageOptions{binaryRelease: true}),
+			newContainerImages(
+				d.Name,
+				"linux",
+				opAmpArchs,
+				containerImageOptions{binaryRelease: true, useCxRepos: true, customImageName: "cx-opampsupervisor"},
+			),
 		)
 		d.ContainerImageManifests = slices.Concat(
-			newContainerImageManifests(d.Name, "linux", opAmpArchs, containerImageOptions{binaryRelease: true}),
+			newContainerImageManifests(
+				d.Name,
+				"linux",
+				opAmpArchs,
+				containerImageOptions{binaryRelease: true, useCxRepos: true, customImageName: "cx-opampsupervisor"},
+			),
 		)
 		d.LdFlags = "-s -w -X github.com/open-telemetry/opentelemetry-collector-contrib/cmd/opampsupervisor/internal.version={{ .Version }}"
 	}).withBinaryPackagingDefaults().

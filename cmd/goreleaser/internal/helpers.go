@@ -42,6 +42,9 @@ func armVersions(dist string) []string {
 
 // imageName translates a distribution name to a container image name.
 func imageName(dist string, opts containerImageOptions) string {
+	if opts.customImageName != "" {
+		return opts.customImageName
+	}
 	if opts.binaryRelease {
 		return imageNamePrefix + "-" + dist
 	}
