@@ -438,7 +438,7 @@ func (b *distributionBuilder) newBinaryRelease(header string) config.Release {
 			Content: header,
 		},
 		GitHub: config.Repo{
-			Owner: "open-telemetry",
+			Owner: "coralogix",
 			Name:  "opentelemetry-collector-releases",
 		},
 	}
