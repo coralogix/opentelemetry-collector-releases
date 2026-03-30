@@ -10,7 +10,7 @@ env:
   - CGO_ENABLED=0
 release:
   github:
-    owner: open-telemetry
+    owner: coralogix
     name: opentelemetry-collector-releases
   make_latest: "false"
   header: '### Release of OpAMP supervisor artifacts'
