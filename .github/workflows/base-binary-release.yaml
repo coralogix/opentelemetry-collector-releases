@@ -53,9 +53,16 @@ jobs:
             echo "COLLECTOR_REF=${{ github.ref }}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Normalize release version
+        id: release-version
+        shell: bash
+        run: |
+          release_version="${GITHUB_REF_NAME##*/}"
+          echo "RELEASE_VERSION=${release_version#v}" >> "$GITHUB_OUTPUT"
+
       - name: Push ${{ inputs.binary }} Tag
         run: |
-          tag="cmd/${{ inputs.binary }}/${{ github.ref_name }}"
+          tag="cmd/${{ inputs.binary }}/${{ steps.release-version.outputs.RELEASE_VERSION }}"
           message="Releasing ${{ inputs.binary }} binaries for ${{ steps.collector-ref.outputs.COLLECTOR_REF }}"
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
@@ -69,7 +76,7 @@ jobs:
         # second to last tag (last one is the current release)
         run: |
           prev_tag=$(git tag | grep "cmd/${{ inputs.binary }}" | grep -v "nightly" | sort -r --version-sort | head -n 2 | tail -n 1)
-          current_tag="cmd/${{ inputs.binary }}/${{ github.ref_name }}"
+          current_tag="cmd/${{ inputs.binary }}/${{ steps.release-version.outputs.RELEASE_VERSION }}"
           echo "PREVIOUS_RELEASE_TAG=$prev_tag" >> "$GITHUB_OUTPUT"
           echo "CURRENT_TAG=$current_tag" >> "$GITHUB_OUTPUT"
 
