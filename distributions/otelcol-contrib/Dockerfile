@@ -1,20 +1,15 @@
-FROM alpine:3.13 as certs
+FROM alpine:3.23@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 as certs
 RUN apk --update add ca-certificates
-
-FROM alpine:3.13 AS otelcol-contrib
-COPY otelcol-contrib /otelcol-contrib
-# Note that this shouldn't be necessary, but in some cases the file seems to be
-# copied with the execute bit lost (see #1317)
-RUN chmod 755 /otelcol-contrib
 
 FROM scratch
 
 ARG USER_UID=10001
-USER ${USER_UID}
+ARG USER_GID=10001
+USER ${USER_UID}:${USER_GID}
 
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=otelcol-contrib /otelcol-contrib /
-COPY configs/otelcol-contrib.yaml /etc/otelcol-contrib/config.yaml
+COPY --chmod=755 otelcol-contrib /otelcol-contrib
+COPY config.yaml /etc/otelcol-contrib/config.yaml
 ENTRYPOINT ["/otelcol-contrib"]
 CMD ["--config", "/etc/otelcol-contrib/config.yaml"]
-EXPOSE 4317 55678 55679
+EXPOSE 4317 4318 55679

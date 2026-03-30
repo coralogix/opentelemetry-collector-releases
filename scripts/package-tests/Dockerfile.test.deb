@@ -1,0 +1,15 @@
+# A debian image with systemd enabled.  Must be run with:
+# `-d --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:ro` flags
+FROM debian:13@sha256:3615a749858a1cba49b408fb49c37093db813321355a9ab7c1f9f4836341e9db
+
+ENV container=docker \
+    DEBIAN_FRONTEND=noninteractive
+
+# Enable systemd.
+RUN apt-get update ; \
+    apt-get install -y systemd systemd-sysv procps; \
+    apt-get clean ; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*; \
+    printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d
+
+CMD ["/lib/systemd/systemd"]

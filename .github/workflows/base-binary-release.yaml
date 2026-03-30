@@ -1,0 +1,146 @@
+name: Reusable binary release workflow
+on:
+  workflow_call:
+    inputs:
+      binary:
+        required: true
+        type: string
+        description: "Which binary to release. Possible options: ['builder', 'opampsupervisor']"
+      collector-dependency:
+        required: false
+        type: string
+        default: ""
+        description: "Set this to the repo slug of collector core or contrib to check out if it's needed as a dependency"
+      dependency-target-folder:
+        required: false
+        type: string
+        default: ""
+        description: "The collector dependency will be put into this folder"
+      windows-msi:
+        required: false
+        type: boolean
+        default: false
+        description: "Set to true if the binary needs a Windows MSI to be built"
+
+env:
+  # renovate: datasource=github-releases packageName=goreleaser/goreleaser-pro
+  GORELEASER_PRO_VERSION: v2.13.3
+
+permissions:
+  contents: read
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-24.04
+
+    permissions:
+      id-token: write
+      packages: write
+      contents: write
+
+    steps:
+      - name: Checkout Releases Repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set COLLECTOR_REF
+        id: collector-ref
+        run: |
+          if [ '${{ contains(github.ref, '-nightly') }}' == 'true' ]; then
+            echo "COLLECTOR_REF=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "COLLECTOR_REF=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push ${{ inputs.binary }} Tag
+        run: |
+          tag="cmd/${{ inputs.binary }}/${{ github.ref_name }}"
+          message="Releasing ${{ inputs.binary }} binaries for ${{ steps.collector-ref.outputs.COLLECTOR_REF }}"
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git tag -a "${tag}" -m "${message}"
+          git push origin "${tag}"
+
+      - name: Set goreleaser last tag reference in case of non-nightly release
+        id: prev-tag
+        if: ${{ !contains(github.ref, '-nightly') }}
+        # find previous tag by taking only binary tags, filtering out nightly tags and then choosing the
+        # second to last tag (last one is the current release)
+        run: |
+          prev_tag=$(git tag | grep "cmd/${{ inputs.binary }}" | grep -v "nightly" | sort -r --version-sort | head -n 2 | tail -n 1)
+          current_tag="cmd/${{ inputs.binary }}/${{ github.ref_name }}"
+          echo "PREVIOUS_RELEASE_TAG=$prev_tag" >> "$GITHUB_OUTPUT"
+          echo "CURRENT_TAG=$current_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Set nightly enabled
+        id: nightly-check
+        if: ${{ contains(github.ref, '-nightly') }}
+        run: |
+          echo "NIGHTLY_FLAG=--nightly" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Collector dependency repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          repository: ${{ inputs.collector-dependency }}
+          ref: ${{ steps.collector-ref.outputs.COLLECTOR_REF }}
+          path: ${{ inputs.dependency-target-folder }}
+
+      - name: Copy Dockerfile to Collector dependency directory
+        run: cp cmd/${{ inputs.binary }}/Dockerfile ${{ inputs.dependency-target-folder }}/cmd/${{ inputs.binary }}/Dockerfile
+
+      - name: Copy MSI files to Core Repo directory
+        if: inputs.windows-msi == true
+        run: |
+          cp cmd/${{ inputs.binary }}/opentelemetry.ico ${{ inputs.dependency-target-folder }}/cmd/${{ inputs.binary }}
+          cp cmd/${{ inputs.binary }}/config.windows.example.yaml ${{ inputs.dependency-target-folder }}/cmd/${{ inputs.binary }}
+
+      - uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        with:
+          cosign-release: "v2.6.1"
+
+      - uses: anchore/sbom-action/download-syft@28d71544de8eaf1b958d335707167c5f783590ad # v0.22.2
+
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        with:
+          platforms: amd64,arm64,ppc64le,riscv64
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Setup Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version: "~1.26.0"
+
+      - name: Setup wixl # Required to build MSI packages for Windows
+        if: inputs.windows-msi == true && runner.os != 'Windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wixl
+
+      - name: Log into Docker.io
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN_COLLECTOR_RELEASES }}
+
+      - name: Login to GitHub Package Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
+        with:
+          distribution: goreleaser-pro
+          version: ${{ env.GORELEASER_PRO_VERSION }}
+          args: release --clean -f cmd/${{ inputs.binary }}/.goreleaser.yaml ${{ steps.nightly-check.outputs.NIGHTLY_FLAG }}
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COSIGN_YES: true
+          GORELEASER_PREVIOUS_TAG: ${{ steps.prev-tag.outputs.PREVIOUS_RELEASE_TAG }}
+          GORELEASER_CURRENT_TAG: ${{ steps.prev-tag.outputs.CURRENT_TAG }}

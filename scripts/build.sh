@@ -1,24 +1,22 @@
 #!/bin/bash
 
-REPO_DIR="$( cd "$(dirname $( dirname "${BASH_SOURCE[0]}" ))" &> /dev/null && pwd )"
+REPO_DIR="$( cd "$(dirname "$( dirname "${BASH_SOURCE[0]}" )")" &> /dev/null && pwd )"
 BUILDER=''
-GO=''
 
 # default values
 skipcompilation=false
 
-while getopts d:s:b:g: flag
+while getopts d:s:b: flag
 do
     case "${flag}" in
         d) distributions=${OPTARG};;
         s) skipcompilation=${OPTARG};;
         b) BUILDER=${OPTARG};;
-        g) GO=${OPTARG};;
+        *) exit 1;;
     esac
 done
 
 [[ -n "$BUILDER" ]] || BUILDER='ocb'
-[[ -n "$GO" ]] || GO='go'
 
 if [[ -z $distributions ]]; then
     echo "List of distributions to build not provided. Use '-d' to specify the names of the distributions to build. Ex.:"
@@ -34,14 +32,20 @@ echo "Distributions to build: $distributions";
 
 for distribution in $(echo "$distributions" | tr "," "\n")
 do
-    pushd "${REPO_DIR}/distributions/${distribution}" > /dev/null
+    pushd "${REPO_DIR}/distributions/${distribution}" > /dev/null || exit
     mkdir -p _build
 
     echo "Building: $distribution"
     echo "Using Builder: $(command -v "$BUILDER")"
-    echo "Using Go: $(command -v "$GO")"
+    echo "Using Go: $(command -v go)"
 
-    if "$BUILDER" --skip-compilation=${skipcompilation} --go "$GO" --config manifest.yaml > _build/build.log 2>&1; then
+    build_env=""
+    if [[ "$distribution" = "otelcol-ebpf-profiler" ]]; then
+        build_env="GOOS=linux" # EBPF is linux exclusive
+        echo "⚠️ eBPF is only supported on Linux, building with GOOS=linux"
+    fi
+
+    if env ${build_env} "$BUILDER" --skip-compilation="${skipcompilation}" --config manifest.yaml > _build/build.log 2>&1; then
         echo "✅ SUCCESS: distribution '${distribution}' built."
     else
         echo "❌ ERROR: failed to build the distribution '${distribution}'."
@@ -52,5 +56,5 @@ do
         exit 1
     fi
 
-    popd > /dev/null
+    popd > /dev/null || exit
 done
