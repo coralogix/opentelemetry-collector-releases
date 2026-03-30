@@ -14,17 +14,18 @@ const (
 	armArchitecture = "arm"
 	dockerHubRepo   = "otel"
 	ghcrRepo        = "ghcr.io/open-telemetry/opentelemetry-collector-releases"
+	cxJfrog         = "cgx.jfrog.io/coralogix-docker-images"
 )
 
-var (
-	imageRepositories = []string{dockerHubRepo, ghcrRepo}
-)
+var imageRepositories = []string{dockerHubRepo, ghcrRepo}
 
 // containerImageOptions contains options for container image configuration.
 type containerImageOptions struct {
 	armVersion    string
 	winVersion    string
 	binaryRelease bool
+	useCxRepos    bool
+	customImageName string
 }
 
 func (o *containerImageOptions) version() string {
@@ -75,15 +76,23 @@ func newContainerImages(dist string, targetOS string, targetArchs []string, opts
 
 // newContainerImageManifests creates container image manifest configurations.
 func newContainerImageManifests(dist, os string, archs []string, opts containerImageOptions) []config.DockerManifest {
-	tags := []string{`{{ .Version }}`, "{{ .Env.CONTAINER_IMAGE_EPHEMERAL_TAG }}"}
+	tags := []string{`{{ .Version }}`}
+	if !opts.useCxRepos {
+		tags = append(tags, "{{ .Env.CONTAINER_IMAGE_EPHEMERAL_TAG }}")
+	}
 	if os == "windows" {
 		for i, tag := range tags {
 			tags[i] = fmt.Sprintf("%s-%s-%s", tag, os, opts.winVersion)
 		}
 	}
 
+	repos := slices.Clone(imageRepositories)
+	if opts.useCxRepos {
+		repos = []string{cxJfrog}
+	}
+
 	var r []config.DockerManifest
-	for _, imageRepo := range imageRepositories {
+	for _, imageRepo := range repos {
 		for _, tag := range tags {
 			r = append(r, buildOSDockerManifest(imageRepo, tag, dist, os, archs, opts))
 		}
@@ -93,13 +102,24 @@ func newContainerImageManifests(dist, os string, archs []string, opts containerI
 
 func buildDockerImageWithOS(dist, os, arch string, opts containerImageOptions) config.Docker {
 	osArch := osArchInfo{os: os, arch: arch, version: opts.version()}
+
+	repos := slices.Clone(imageRepositories)
+	if opts.useCxRepos {
+		repos = []string{cxJfrog}
+	}
+
 	var imageTemplates []string
-	for _, prefix := range imageRepositories {
+	for _, prefix := range repos {
 		imageTemplates = append(
 			imageTemplates,
 			fmt.Sprintf("%s/%s:{{ .Version }}-%s", prefix, imageName(dist, opts), osArch.imageTag()),
-			fmt.Sprintf("%s/%s:{{ .Env.CONTAINER_IMAGE_EPHEMERAL_TAG }}-%s", prefix, imageName(dist, opts), osArch.imageTag()),
 		)
+		if !opts.useCxRepos {
+			imageTemplates = append(
+				imageTemplates,
+				fmt.Sprintf("%s/%s:{{ .Env.CONTAINER_IMAGE_EPHEMERAL_TAG }}-%s", prefix, imageName(dist, opts), osArch.imageTag()),
+			)
+		}
 	}
 
 	label := func(name, template string) string {
