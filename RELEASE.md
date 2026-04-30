@@ -3,6 +3,11 @@
 This document describes the release flow for the `opampsupervisor` binary in
 this repository.
 
+## Bringing updates from upstream
+
+See [UPSTREAM_UPDATE.md](UPSTREAM_UPDATE.md) for instructions on how to bring updates
+from the upstream.
+
 ## Tag Model
 
 OpAMP releases use two different tags:
