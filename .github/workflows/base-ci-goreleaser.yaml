@@ -37,7 +37,7 @@ permissions:
 
 env:
   # renovate: datasource=github-releases packageName=goreleaser/goreleaser-pro
-  GORELEASER_PRO_VERSION: v2.16.0
+  GORELEASER_PRO_VERSION: v2.17.1
 
 jobs:
   prev-tag:
@@ -45,7 +45,7 @@ jobs:
       PREVIOUS_RELEASE_TAG: ${{ steps.prev-tag.outputs.PREVIOUS_RELEASE_TAG }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Set goreleaser last tag reference in case of non-nightly release
@@ -88,7 +88,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -114,7 +114,7 @@ jobs:
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Setup Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "~1.26.0"
           check-latest: true
@@ -241,7 +241,7 @@ jobs:
           if-no-files-found: error
 
       - name: Prepare variables
-        if: matrix.GOOS == 'linux' || matrix.GOOS == 'windows'
+        if: matrix.GOOS == 'linux' || matrix.GOOS == 'windows' || matrix.GOOS == 'aix'
         id: prep
         shell: bash
         run: |
@@ -260,7 +260,7 @@ jobs:
 
 
       - name: Print version and target
-        if: matrix.GOOS == 'linux' || matrix.GOOS == 'windows'
+        if: matrix.GOOS == 'linux' || matrix.GOOS == 'windows' || matrix.GOOS == 'aix'
         run: |
           echo 'Version: ${{ steps.prep.outputs.version }}'
           echo 'Types: ${{ steps.prep.outputs.types }}'
@@ -270,7 +270,7 @@ jobs:
           echo 'Image tag: ${{ env.TAG }}'
 
       - name: Copy binary to distro root folder
-        if: matrix.GOOS == 'linux' || matrix.GOOS == 'windows'
+        if: matrix.GOOS == 'linux' || matrix.GOOS == 'windows' || matrix.GOOS == 'aix'
         run: cp ./distributions/${{ inputs.distribution }}/${{ steps.prep.outputs.binarypath }} ./distributions/${{ inputs.distribution }}
 
       - name: Build container images locally (Linux)
@@ -307,6 +307,7 @@ jobs:
         run: ./.github/workflows/scripts/check-disk-space.sh
 
   docker-tests:
+    if: inputs.goos != '[ "aix" ]'
     needs:
       - check-goreleaser
     strategy:
@@ -324,7 +325,7 @@ jobs:
       TAG: ${{ needs.check-goreleaser.outputs.version }}-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup QEMU
         if: runner.os != 'Windows'
