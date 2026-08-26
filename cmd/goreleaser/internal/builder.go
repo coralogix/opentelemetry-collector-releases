@@ -210,6 +210,9 @@ func (b *distributionBuilder) newNfpms(dist string) []config.NFPM {
 			Overrides: map[string]config.NFPMOverridables{
 				"rpm": {
 					Dependencies: []string{"/bin/sh"},
+					Scripts: config.NFPMScripts{
+						PostInstall: "postinstall-rpm.sh",
+					},
 				},
 			},
 			NFPMOverridables: config.NFPMOverridables{
@@ -275,16 +278,12 @@ func (b *distributionBuilder) withDefaultSigns() *distributionBuilder {
 func (b *distributionBuilder) signs() []config.Sign {
 	return []config.Sign{
 		{
-			Artifacts:   "all",
-			Signature:   "${artifact}.sig",
-			Certificate: "${artifact}.pem",
-			Cmd:         "cosign",
+			Artifacts: "all",
+			Signature: "${artifact}.sigstore.json",
+			Cmd:       "cosign",
 			Args: []string{
 				"sign-blob",
-				"--output-signature",
-				"${artifact}.sig",
-				"--output-certificate",
-				"${artifact}.pem",
+				"--bundle=${signature}",
 				"${artifact}",
 			},
 		},
@@ -355,7 +354,7 @@ func (b *distributionBuilder) newSboms() []config.SBOM {
 func (b *distributionBuilder) withDefaultChecksum() *distributionBuilder {
 	b.configFuncs = append(b.configFuncs, func(d *distribution) {
 		b.dist.Checksum = config.Checksum{
-			NameTemplate: fmt.Sprintf("{{ .ProjectName }}_%v{{ if eq .Runtime.Goos \"windows\" }}_{{ .Runtime.Goos }}{{ end }}_checksums.txt", d.Name),
+			Split: true,
 		}
 	})
 	return b
@@ -364,7 +363,7 @@ func (b *distributionBuilder) withDefaultChecksum() *distributionBuilder {
 func (b *distributionBuilder) withDefaultBinaryChecksum() *distributionBuilder {
 	b.configFuncs = append(b.configFuncs, func(d *distribution) {
 		b.dist.Checksum = config.Checksum{
-			NameTemplate: "checksums.txt",
+			Split: true,
 		}
 	})
 	return b

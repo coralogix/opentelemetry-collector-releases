@@ -4,6 +4,69 @@
 
 <!-- next version -->
 
+## v0.159.0
+
+### 🛑 Breaking changes 🛑
+
+- `contrib`: Remove deprecated kafkatopicsobserver extension from the contrib distribution (#1597)
+
+### 🚀 New components 🚀
+
+- `extension/aws_iam_db_auth`: Add `aws_iam_db_auth` to the contrib distribution (#1591)
+
+## v0.158.0
+
+### 🛑 Breaking changes 🛑
+
+- `all`: Update Cosign usage to work with v3 (#1570)
+  The Cosign v3 upgrade introduced a change in signing workflow. Previous two files
+  were required to map the outputs (certificate and signature), now only one file is required.
+  The new file is a bundle that contains both outputs in JSON format.
+  This change has been done following the guidance from https://goreleaser.com/blog/cosign-v3/.
+  With this change, anyone who wants to verify the signature of the artifacts produced by the
+  release will need to use Cosign V3 and point to the new bundle file or download the bundle and
+  unpack it to get the certificate and signature files.
+  
+- `all`: Use split checksum for all binaries and distros (#1582)
+  The previous attempt at splitting the checksum file for AIX releases was not successful.
+  The problem lies on the fac that `.runtime.GOOS` will always be the runtime of the compiled
+  goreleaser binary ("linux" in this case). The only way to split the checksum file per target
+  is what's implement here, but it ends up giving one checksum file per produced artifact.
+  
+
+### 🚀 New components 🚀
+
+- `icmpcheckreceiver`: Add icmpcheckreceiver to the contrib distribution (#1577)
+
+### 💡 Enhancements 💡
+
+- `all`: Add new binaries for aix/ppc64 (#1424)
+
+### 🧰 Bug fixes 🧰
+
+- `all`: Skip Docker build and publish in AIX release job. (#1580)
+  The release for Contrib on AIX runs in its own job, where it doesn't build
+  Docker images. The `continue --merge` phase of goreleaser runs all publishers
+  by default, including the Docker manifests one. This will fail for AIX as
+  the images aren't built.
+  
+
+## v0.157.0
+
+### 🛑 Breaking changes 🛑
+
+- `contrib`: Remove deprecated signalfx receiver from the contrib distribution (#1551)
+- `packaging`: Prevent service being started/enabled upon install for rpms (#1334)
+  This brings behaviour inline with usual expectations for rpm packages which usually leave this up to the system administrator.
+
+### 🚀 New components 🚀
+
+- `cardinalityguardianprocessor`: Add Cardinality Guardian processor to the OpenTelemetry Collector Contrib. (#1549)
+
+### 💡 Enhancements 💡
+
+- `ebpf-profiler`: Use a scratch image similar to the contrib image for the ebpf-profiler image (#930)
+
 ## v0.156.0
 
 ### 🚀 New components 🚀
