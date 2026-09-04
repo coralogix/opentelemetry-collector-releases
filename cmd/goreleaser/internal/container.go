@@ -23,6 +23,7 @@ var imageRepositories = []string{dockerHubRepo, ghcrRepo}
 type containerImageOptions struct {
 	armVersion    string
 	winVersion    string
+	winVersionSHA string
 	binaryRelease bool
 	useCxRepos    bool
 	customImageName string
@@ -149,6 +150,7 @@ func buildDockerImageWithOS(dist, os, arch string, opts containerImageOptions) c
 		imageConfig.BuildFlagTemplates = slices.Insert(
 			imageConfig.BuildFlagTemplates, 1,
 			fmt.Sprintf("--build-arg=WIN_VERSION=%s", opts.winVersion),
+			fmt.Sprintf("--build-arg=WIN_VERSION_SHA=%s", opts.winVersionSHA),
 		)
 		imageConfig.Dockerfile = "Windows.dockerfile"
 		imageConfig.Use = "docker"
