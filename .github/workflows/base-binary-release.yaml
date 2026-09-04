@@ -24,7 +24,7 @@ on:
 
 env:
   # renovate: datasource=github-releases packageName=goreleaser/goreleaser-pro
-  GORELEASER_PRO_VERSION: v2.17.1
+  GORELEASER_PRO_VERSION: v2.18.0
 
 permissions:
   contents: read
@@ -46,12 +46,9 @@ jobs:
 
       - name: Set COLLECTOR_REF
         id: collector-ref
-        run: |
-          if [ '${{ contains(github.ref, '-nightly') }}' == 'true' ]; then
-            echo "COLLECTOR_REF=main" >> "$GITHUB_OUTPUT"
-          else
-            echo "COLLECTOR_REF=${{ github.ref }}" >> "$GITHUB_OUTPUT"
-          fi
+        env:
+          BINARY: ${{ inputs.binary }}
+        run: ./.github/workflows/scripts/collector-ref.sh
 
       - name: Normalize release version
         id: release-version
@@ -62,12 +59,20 @@ jobs:
 
       - name: Push ${{ inputs.binary }} Tag
         run: |
-          tag="cmd/${{ inputs.binary }}/${{ steps.release-version.outputs.RELEASE_VERSION }}"
-          message="Releasing ${{ inputs.binary }} binaries for ${{ steps.collector-ref.outputs.COLLECTOR_REF }}"
+          tag="cmd/${INPUTS_BINARY}/${STEPS_RELEASE_VERSION_OUTPUTS_RELEASE_VERSION}"
+          message="Releasing ${INPUTS_BINARY} binaries for ${STEPS_COLLECTOR_REF_OUTPUTS_COLLECTOR_REF}"
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          git tag -a "${tag}" -m "${message}"
-          git push origin "${tag}"
+          if git ls-remote --exit-code --tags origin "${tag}" > /dev/null; then
+            echo "Tag ${tag} already exists on origin, skipping creation (this is a retry)"
+          else
+            git tag -a "${tag}" -m "${message}"
+            git push origin "${tag}"
+          fi
+        env:
+          INPUTS_BINARY: ${{ inputs.binary }}
+          STEPS_COLLECTOR_REF_OUTPUTS_COLLECTOR_REF: ${{ steps.collector-ref.outputs.COLLECTOR_REF }}
+          STEPS_RELEASE_VERSION_OUTPUTS_RELEASE_VERSION: ${{ steps.release-version.outputs.RELEASE_VERSION }}
 
       - name: Set goreleaser last tag reference in case of non-nightly release
         id: prev-tag
@@ -75,10 +80,13 @@ jobs:
         # find previous tag by taking only binary tags, filtering out nightly tags and then choosing the
         # second to last tag (last one is the current release)
         run: |
-          prev_tag=$(git tag | grep "cmd/${{ inputs.binary }}" | grep -v "nightly" | sort -r --version-sort | head -n 2 | tail -n 1)
-          current_tag="cmd/${{ inputs.binary }}/${{ steps.release-version.outputs.RELEASE_VERSION }}"
+          prev_tag=$(git tag | grep "cmd/${INPUTS_BINARY}" | grep -v "nightly" | sort -r --version-sort | head -n 2 | tail -n 1)
+          current_tag="cmd/${INPUTS_BINARY}/${STEPS_RELEASE_VERSION_OUTPUTS_RELEASE_VERSION}"
           echo "PREVIOUS_RELEASE_TAG=$prev_tag" >> "$GITHUB_OUTPUT"
           echo "CURRENT_TAG=$current_tag" >> "$GITHUB_OUTPUT"
+        env:
+          INPUTS_BINARY: ${{ inputs.binary }}
+          STEPS_RELEASE_VERSION_OUTPUTS_RELEASE_VERSION: ${{ steps.release-version.outputs.RELEASE_VERSION }}
 
       - name: Set nightly enabled
         id: nightly-check
@@ -95,13 +103,19 @@ jobs:
           path: ${{ inputs.dependency-target-folder }}
 
       - name: Copy Dockerfile to Collector dependency directory
-        run: cp cmd/${{ inputs.binary }}/Dockerfile ${{ inputs.dependency-target-folder }}/cmd/${{ inputs.binary }}/Dockerfile
+        run: cp cmd/${INPUTS_BINARY}/Dockerfile ${INPUTS_DEPENDENCY_TARGET_FOLDER}/cmd/${INPUTS_BINARY}/Dockerfile
+        env:
+          INPUTS_BINARY: ${{ inputs.binary }}
+          INPUTS_DEPENDENCY_TARGET_FOLDER: ${{ inputs.dependency-target-folder }}
 
       - name: Copy MSI files to Core Repo directory
         if: inputs.windows-msi == true
         run: |
-          cp cmd/${{ inputs.binary }}/opentelemetry.ico ${{ inputs.dependency-target-folder }}/cmd/${{ inputs.binary }}
-          cp cmd/${{ inputs.binary }}/config.windows.example.yaml ${{ inputs.dependency-target-folder }}/cmd/${{ inputs.binary }}
+          cp cmd/${INPUTS_BINARY}/opentelemetry.ico ${INPUTS_DEPENDENCY_TARGET_FOLDER}/cmd/${INPUTS_BINARY}
+          cp cmd/${INPUTS_BINARY}/config.windows.example.yaml ${INPUTS_DEPENDENCY_TARGET_FOLDER}/cmd/${INPUTS_BINARY}
+        env:
+          INPUTS_BINARY: ${{ inputs.binary }}
+          INPUTS_DEPENDENCY_TARGET_FOLDER: ${{ inputs.dependency-target-folder }}
 
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
@@ -122,9 +136,11 @@ jobs:
 
       - name: Setup wixl # Required to build MSI packages for Windows
         if: inputs.windows-msi == true && runner.os != 'Windows'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wixl
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          command: sudo apt-get update && sudo apt-get install -y wixl
 
       - name: Login to JFrog
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
