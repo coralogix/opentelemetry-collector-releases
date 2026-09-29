@@ -1,4 +1,4 @@
-name: Release Core
+name: Release Collector Prometheus distribution
 
 on:
   push:
@@ -8,35 +8,37 @@ permissions:
   contents: read
 
 jobs:
-  release:
-    name: Release Core
+  release-linux:
+    name: Release Collector Prometheus distribution (Linux)
     uses: ./.github/workflows/base-release.yaml
     with:
-      distribution: otelcol
-      goos: '[ "linux", "darwin" ]'
-      goarch: '[ "386", "amd64", "arm64", "ppc64le", "arm", "s390x", "riscv64" ]'
+      distribution: otelcol-prometheus
+      goos: '[ "linux" ]'
+      goarch: '[ "amd64", "arm64" ]'
       nightly: ${{ contains(github.ref, '-nightly') }}
       owns_docker_manifests: true
     secrets: inherit
     permissions: write-all
-  release-aix:
-    name: Release Core (AIX)
+
+  release-darwin:
+    name: Release Collector Prometheus distribution (macOS)
     uses: ./.github/workflows/base-release.yaml
     with:
-      distribution: otelcol
-      goos: '[ "aix" ]'
-      goarch: '[ "ppc64" ]'
+      distribution: otelcol-prometheus
+      goos: '[ "darwin" ]'
+      goarch: '[ "arm64" ]'
       nightly: ${{ contains(github.ref, '-nightly') }}
     secrets: inherit
     permissions: write-all
+
   release-windows:
-    name: Release Core (Windows)
+    name: Release Collector Prometheus distribution (Windows)
     if: ${{ !contains(github.ref, '-nightly') }}
     uses: ./.github/workflows/base-release.yaml
     with:
-      distribution: otelcol
+      distribution: otelcol-prometheus
       goos: '[ "windows" ]'
-      goarch: '[ "386", "amd64", "arm64" ]'
+      goarch: '[ "amd64" ]'
       runner_os: windows-2022
     secrets: inherit
     permissions: write-all

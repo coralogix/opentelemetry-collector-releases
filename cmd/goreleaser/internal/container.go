@@ -15,17 +15,24 @@ const (
 	dockerHubRepo   = "otel"
 	ghcrRepo        = "ghcr.io/open-telemetry/opentelemetry-collector-releases"
 	cxJfrog         = "cgx.jfrog.io/coralogix-docker-images"
+
+	// manifestOwnerGuard skips a docker manifest unless the release job declares it
+	// owns the per-arch images the manifest references. Uses envOrDefault rather
+	// than a bare `.Env.OWNS_DOCKER_MANIFESTS` because goreleaser renders templates
+	// with missingkey=error, so a plain lookup fails outright whenever the variable
+	// is absent -- which is the normal case for snapshot and CI runs.
+	manifestOwnerGuard = `{{ ne (envOrDefault "OWNS_DOCKER_MANIFESTS" "false") "true" }}`
 )
 
 var imageRepositories = []string{dockerHubRepo, ghcrRepo}
 
 // containerImageOptions contains options for container image configuration.
 type containerImageOptions struct {
-	armVersion    string
-	winVersion    string
-	winVersionSHA string
-	binaryRelease bool
-	useCxRepos    bool
+	armVersion      string
+	winVersion      string
+	winVersionSHA   string
+	binaryRelease   bool
+	useCxRepos      bool
 	customImageName string
 }
 
@@ -184,8 +191,22 @@ func buildOSDockerManifest(prefix, version, dist, os string, archs []string, opt
 		NameTemplate:   fmt.Sprintf("%s/%s:%s", prefix, imageName(dist, opts), version),
 		ImageTemplates: imageTemplates,
 	}
-	if os == "windows" {
+	switch {
+	case os == "windows":
 		manifest.SkipPush = "{{ not (eq .Runtime.Goos \"windows\") }}"
+	case !opts.binaryRelease:
+		// Distributions are released by several parallel base-release.yaml invocations
+		// (linux, windows, aix, ...), and each one runs `goreleaser continue --merge`
+		// over this same config. Without a guard every invocation would try to create
+		// these manifests, but the per-arch images they reference are only pushed by
+		// the linux invocation -- so whoever gets there first fails with
+		// "no such manifest". Only the invocation that owns those images sets
+		// OWNS_DOCKER_MANIFESTS, so exactly one of them does the work.
+		//
+		// Binary releases (ocb, opampsupervisor) are excluded: they run as a single
+		// goreleaser job with no split/merge, so there is nothing to race against and
+		// nothing sets the variable for them.
+		manifest.SkipPush = manifestOwnerGuard
 	}
 	return manifest
 }
