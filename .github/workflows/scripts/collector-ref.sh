@@ -27,6 +27,15 @@ if [[ "${GITHUB_REF}" == *-nightly* ]]; then
   exit 0
 fi
 
+# Coralogix Supervisor tags identify the validated fork commit, including fixes
+# released independently of the Collector component versions in the manifests.
+if [[ "${BINARY}" == "opampsupervisor" && "${GITHUB_REF}" == refs/tags/cx-opampsupervisor/v* ]]; then
+  collector_ref="${GITHUB_REF#refs/tags/}"
+  echo "Building opampsupervisor against matching Coralogix tag ${collector_ref}"
+  echo "COLLECTOR_REF=${collector_ref}" >> "${GITHUB_OUTPUT}"
+  exit 0
+fi
+
 # The patterns are used as awk dynamic regexes, so literal dots are written as
 # [.] rather than \. to keep them clear of awk's string escape processing.
 case "${BINARY}" in
