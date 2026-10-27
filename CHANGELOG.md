@@ -4,6 +4,19 @@
 
 <!-- next version -->
 
+## v0.164.0
+
+### 🚀 New components 🚀
+
+- `otelcol-contrib`: Add the partitioning processor to the Contrib distribution (#1727)
+
+### 💡 Enhancements 💡
+
+- `otelcol`: Add the `filelog` receiver, `resourcedetection` processor and `transform` processor to the core distribution. (#44130)
+  These Contrib components are priorities for stabilization.
+  See https://github.com/open-telemetry/opentelemetry-collector-contrib/issues/44130.
+  
+
 ## v0.163.2
 
 ### 🧰 Bug fixes 🧰
