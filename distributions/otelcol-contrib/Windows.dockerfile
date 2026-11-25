@@ -1,6 +1,6 @@
 # escape=`
 ARG WIN_VERSION=2019
-ARG WIN_VERSION_SHA=sha256:08d84cf1d9d6edd5f117bd955cc0e9d2a6db4b7f89d51c64518a7fe2372fb8d8
+ARG WIN_VERSION_SHA=sha256:a0d53c656749f02ad8490478f18f51e99b4a3fba23b1dd198083e94ed1620ab9
 FROM mcr.microsoft.com/windows/nanoserver:ltsc${WIN_VERSION}@${WIN_VERSION_SHA}
 
 COPY otelcol-contrib.exe ./otelcol-contrib.exe

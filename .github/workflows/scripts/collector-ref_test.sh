@@ -13,9 +13,9 @@ check_ref() {
   [[ "$(cat "$output")" == "COLLECTOR_REF=$expected" ]]
 }
 
-check_ref opampsupervisor refs/tags/cx-opampsupervisor/v0.165.0 cx-opampsupervisor/v0.165.0
-check_ref opampsupervisor refs/tags/v0.165.0 v0.165.0
-check_ref builder refs/tags/v0.165.0 v0.165.0
+check_ref opampsupervisor refs/tags/cx-opampsupervisor/v0.166.0 cx-opampsupervisor/v0.166.0
+check_ref opampsupervisor refs/tags/v0.166.0 v0.166.0
+check_ref builder refs/tags/v0.166.0 v0.166.0
 check_ref opampsupervisor refs/tags/nightly-opampsupervisor-nightly main
-check_ref builder refs/tags/cx-opampsupervisor/v0.165.0 v0.165.0
+check_ref builder refs/tags/cx-opampsupervisor/v0.166.0 v0.166.0
 echo 'All 5 collector-ref cases passed.'
